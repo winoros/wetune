@@ -1,0 +1,6 @@
+dependencies {
+    implementation project(":common")
+    implementation project(":superopt")
+    implementation project(":sql")
+    implementation project(":stmt")
+}

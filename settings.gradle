@@ -1,0 +1,8 @@
+rootProject.name = 'wetune'
+include 'common', 'sql'
+include 'stmt'
+include 'superopt'
+include 'testbed'
+include 'spes'
+include 'demo'
+
