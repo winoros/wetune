@@ -75,10 +75,10 @@ will help understand the internal of WeTune.
 
 ```shell
 # Launch background processes to run rule discovery
-click-to-run/discover-rules.sh [-spes]
+click-to-run/discover-rules.sh 
 
 # After the all processes finished:
-click-to-run/collect-rules.sh && click-to-run/reduce-rules.sh [-spes]
+click-to-run/collect-rules.sh && click-to-run/reduce-rules.sh 
 
 # Check progress:
 click-to-run/show-progress.sh
@@ -89,85 +89,71 @@ click-to-run/stop-discovery.sh
 
 The first commands launches many processes running in the background.
 
-* `-spes`: use SPES verifier to prove rule correctness. We recommend to use 
-`click-to-run/discover-rules-continuous.sh [-spes]` instead for SPES verifier since sometimes the processes 
-may be unexpectedly shut down in current implementation, which remains to be fixed in the future work.
-
 The procedure will consume all CPUs and take a long time (~3600 CPU hours) to finish. The discovered rules so far can be
 found in `wtune_data/enumeration/run_*/success.txt` (`*` here is a timestamp).
 
 The second commands aggregates `wtune_data/enumeration/run_*/succcess.txt` and reduce the rules (Section 7 in paper).
 The resulting rules can be found in `wtune_data/rules/rules.txt`.
 
-* `-spes`: output to `wtune_data/rules/rules.spes.txt`.
-
 The third are used to check the progress. The fourth can terminate all background tasks launched by the first command.
-
-> For the simplicity of demonstration, we separate the enumeration using the built-in and SPES verifier.
 
 > **Why multi-process instead of multi-thread?**
 >
 > z3 incurs high inter-thread lock contention. The script uses multi-process instead of multi-thread to mitigate this problem.
 
 > Since the rule discovery takes a substantial time, we have provided enumerated rules
-> in `wtune_data/prepared/rules.txt` and `wtune_data/prepared/rules.spes.txt`
+> in `wtune_data/prepared/rules.txt`
 
 ### Rewrite Queries Using Discovered Rules
 
 ```shell
-click-to-run/rewrite-queries.sh [-spes] [-calcite] [-R <path/to/rules>]
+click-to-run/rewrite-queries.sh [-R <path/to/rules>]
 ```
 
-This script uses the rules in `<path/to/rules>` to rewrite queries.
+This script uses the rules in `<path/to/rules>` to rewrite 8000+ web application queries.
 
 * `-R`: path to rule file, rooted by `wtune_data/`. Default: `wtune_data/rules/rules.txt` if exists,
   otherwise `wtune_data/prepared/rules.txt`.
-* `-spes`: if specified, use rules proved by SPES to rewrite queries. Default path to rule file: `wtune_data/rules/rules.spes.txt` if exists,
-  otherwise `wtune_data/prepared/rules.spes.txt`. 
-* `-calcite`: if specified, rewrite calcite 464 queries. otherwise, rewrite 8000+ application queries.
 
-If rewriting application queries, the rewritten queries can be found in `wtune_data/rewrite/result/1_query.tsv`.
-If using SPES rules, the path becomes `wtune_data/rewrite/result_spes/1_query.tsv`.
-
-If rewriting Calcite queries, the rewritten queries can be found in `wtune_data/calcite/result`.
-If using SPES rules, the path becomes `wtune_data/calcite/result_spes`.
+The rewritten queries can be found in `wtune_data/rewrite/result/1_query.tsv`.
 
 ### Evaluate the Rewritings
 
 ```shell
-click-to-run/estimate-cost.sh [-spes] [-calcite]
-click-to-run/prepare-workload.sh [-spes] [-calcite] [-tag] <workload_type>
-click-to-run/profile-cost.sh [-spes] [-calcite] [-tag] <workload_type>
+# Estimate the cost of rewritten queries and pick one with the minimal cost
+# The prepared `base` workload is used to estimate the queries' cost
+click-to-run/prepare-workload.sh -tag base
+click-to-run/estimate-cost.sh
+
+# Profile the performance of rewritten queries
+# If you pofile on the `base` workload type, no need to run `prepare-workload.sh` again
+click-to-run/prepare-workload.sh [-tag <workload_type>]
+
+click-to-run/profile-cost.sh [-tag <workload_type>]
 ```
 
 These scripts pick the optimized queries and profile them using Sql Server database.
 
-**For database connection parameters in the scripts above 
-and in file `common/src/main/java/wtune/common/datasource/DbSupport.java`
-, you can change them according to your evaluation environment.**
+> For database connection parameters in the scripts above 
+> and in file `common/src/main/java/wtune/common/datasource/DbSupport.java`
+> , you can change them according to your evaluation environment.**
+
+Use `click-to-run/prepare-workload.sh` to prepare profiling workload data in Sql Server database.
+It creates databases and corresponding schemas in Sql Server, then generate and import data to Sql Server.
+Dumped data files can be found in directory `wtune_data/dump/`.
 
 `click-to-run/estimate-cost.sh` takes previously generated file `wtune_data/rewrite/result/1_query.tsv` as input and
 pick one rewritten query with the minimal cost by asking the database's cost model. The result will be stored
 in `wtune_data/rewrite/result/2_query.tsv` and used rules will be stored in
 `wtune_data/rewrite/result/2_trace.tsv`.
 
-Use `click-to-run/prepare-workload.sh` to prepare profiling workload data in Sql Server database.
-It creates databases and corresponding schemas in Sql Server, then generate and import data to Sql Server. 
-Dumped data files can be found in directory `wtune_data/dump/`.
-
-And `click-to-run/profile-cost.sh` profiles the optimized queries. The output file is in `wtune_data/profile/result` by
+And `click-to-run/profile-cost.sh` evaluates the optimized queries. The output file is in `wtune_data/profile/result/` by
 default.
 
-* `-spes`: if you are going to estimate and profile queries optimized by SPES, add this option to the scripts above. 
-For `click-to-run/estimate-cost.sh`, it will take `wtune_data/rewrite/result_spes/1_query.tsv` as input
-and output file will be in `wtune_data/rewrite/result_spes/` as well.
-For profiling, the results will be in `wtune_data/profile/result_spes` instead.
-* `-calcite`: if you are going to estimate and profile calcite's 464 queries, add this option. The corresponding directories
-will become `wtune_data/calcite/` and `wtune_data/profile_calcite/`.
-* `-tag`: workload type. Default type: `base`. See details below.
+* `-tag`: specifies workload type. Default type is `base`. See details below.
 
 #### Workload types
-In the paper, we evaluate queries on 4 different workload types:
+In the paper, we evaluate query performance on 4 different workload types:
 
 | Workload type | # of rows | Data distribution |
 |---------------|-----------|-------------------|
@@ -180,8 +166,7 @@ If you would like to evaluate on different type of workload, you
 can set `-tag` option to the scripts.
 
 For example, to evaluate queries on workload type of `zipf`, run:
-```shell
-click-to-run/estimate-cost.sh 
+```shell 
 click-to-run/prepare-workload.sh -tag zipf 
 click-to-run/profile-cost.sh -tag zipf 
 ```
@@ -190,7 +175,7 @@ The profiling result is actually stored in file `wtune_data/profile/result/{work
 ### View results
 Finally, you can run: 
 ```shell
-click-to-run/view-all.sh [-spes] [-calcite]
+click-to-run/view-all.sh
 ```
 to view rewriting and profiling results together. 
 The resulting files are stored in `wtune_data/viewall/result/` by default.
@@ -200,10 +185,95 @@ The resulting files are stored in `wtune_data/viewall/result/` by default.
         |-- rules.tsv       # Used rules during rewriting
         |-- statistic.tsv   # Rewritten queries and profiling results
 ```
-* `-spes`: view results of queries optimized by SPES. 
-Corresponding output files are in `wtune_data/viewall/result_spes/`. 
-* `-calcite`: view results of calcite 464 queries. 
-Corresponding output files are in `wtune_data/viewall_calcite/result/`.
+
+## SPES Verifier
+WeTune has integrated an existing verifier called SPES 
+(Zhou et al. SPES: A Two-Stage Query Equivalence Verifier. VLDB '20.)
+to improve the ability of discovering rules. The workflow of using SPES to discover
+rules, rewrite and evaluate queries is similar to WeTune Workflow section.
+
+### Discover Rules
+
+```shell
+# Launch background processes to run rule discovery
+click-to-run/discover-rules-continuous.sh -spes
+
+# After the all processes finished:
+click-to-run/collect-rules.sh && click-to-run/reduce-rules.sh -spes
+
+# Check progress:
+click-to-run/show-progress.sh
+
+# Use this to terminate all process
+click-to-run/stop-discovery.sh
+```
+
+The first commands use SPES verifier to prove rule correctness. We use
+`click-to-run/discover-rules-continuous.sh -spes` instead when using SPES verifier 
+since sometimes the processes may be unexpectedly shut down in SPES's 
+current implementation, which remains to be fixed in the future work.
+
+The discovered rules so far can also be found in
+`wtune_data/enumeration/run_*/success.txt` (`*` here is a timestamp).
+
+The second commands aggregates `wtune_data/enumeration/run_*/succcess.txt` 
+and reduce the rules (Section 7 in paper). 
+The resulting rules can be found in `wtune_data/rules/rules.spes.txt`.
+
+The third are used to check the progress. The fourth can terminate all background tasks launched by the first command.
+
+> For the simplicity of demonstration, we separate the enumeration using the built-in and SPES verifier.
+
+> We have also provided rules enumerated by SPES verifier in
+> `wtune_data/prepared/rules.spes.txt`
+
+### Rewrite Queries Using Discovered Rules
+```shell
+click-to-run/rewrite-queries.sh -spes [-R <path/to/rules>]
+```
+
+This script uses the rules in `<path/to/rules>` to rewrite queries.
+
+* `-R`: path to rule file, rooted by `wtune_data/`. Default: `wtune_data/rules/rules.spes.txt` if exists,
+  otherwise `wtune_data/prepared/rules.spes.txt`.
+
+The rewritten queries can be found in `wtune_data/rewrite/result_spes/1_query.tsv`.
+
+### Evaluate the Rewritings
+
+```shell
+# Estimate the cost of rewritten queries and pick one with the minimal cost
+# The prepared `base` workload is used to estimate the queries' cost
+click-to-run/prepare-workload.sh -tag base
+click-to-run/estimate-cost.sh -spes
+
+# Profile the performance of rewritten queries
+# If you pofile on the `base` workload type, no need to run `prepare-workload.sh` again
+click-to-run/prepare-workload.sh [-tag <workload_type>]
+
+click-to-run/profile-cost.sh -spes [-tag <workload_type>]
+```
+
+These scripts pick the optimized queries and profile them using Sql Server database.
+
+Use `click-to-run/prepare-workload.sh` to prepare workload data in Sql Server database.
+
+`click-to-run/estimate-cost.sh -spes` takes previously generated file `wtune_data/rewrite/result_spes/1_query.tsv` as input and
+pick one rewritten query with the minimal cost by asking the database's cost model. The result will be stored
+in `wtune_data/rewrite/result_spes/2_query.tsv` and used rules will be stored in
+`wtune_data/rewrite/result_spes/2_trace.tsv`.
+
+`click-to-run/profile-cost.sh -spes` evaluates the optimized queries. The output file is in `wtune_data/profile/result_spes/` by
+default.
+
+### View results
+Finally, you can run:
+```shell
+click-to-run/view-all.sh -spes
+```
+to view rewriting and profiling results together. 
+
+Corresponding output files are in `wtune_data/viewall/result_spes/`.
 
 ## Run Examples
 
@@ -261,11 +331,51 @@ metrics will be appended after enumeration completes.
 
 P.S. If `-dump` is specified, for some pairs, the output floods for a few minutes, you may want to dump it to a file.
 
-## Test Verifier on Calcite
+## Calcite Query Set
 
 The Calcite queries can be found in `wtune_data/calcite/calcite_tests`.
 
-### Test Query
+### Rewrite Calcite Queries
+We can use discovered rules to rewrite and profile Calcite queries as well, 
+simply by adding an optional parameter `-calcite` to related scripts in the workflow: 
+
+```shell
+click-to-run/rewrite-queries.sh -calcite [-R <path/to/rules>]
+```
+The rewritten queries can be found in `wtune_data/calcite/result/`.
+
+
+```shell
+# Estimate the cost of rewritten queries and pick one with the minimal cost
+# The prepared `base` workload is used to estimate the queries' cost
+click-to-run/prepare-workload.sh -calcite -tag base
+click-to-run/estimate-cost.sh -calcite
+
+# Profile the performance of rewritten queries
+# If you pofile on the `base` workload type, no need to run `prepare-workload.sh` again
+click-to-run/prepare-workload.sh -calcite [-tag <workload_type>]
+
+click-to-run/profile-cost.sh -calcite [-tag <workload_type>]
+```
+Use `click-to-run/prepare-workload.sh -calcite` to prepare workload data in Sql Server database.
+
+`click-to-run/estimate-cost.sh -calcite` takes previously generated file `wtune_data/calcite/result/1_query.tsv` as input and
+pick one rewritten query with the minimal cost by asking the database's cost model. The result will be stored
+in `wtune_data/calcite/result/2_query.tsv` and used rules will be stored in
+`wtune_data/calcite/result/2_trace.tsv`.
+
+`click-to-run/profile-cost.sh -calcite` evaluates the optimized queries. The output file is in `wtune_data/profile_calcite/result/` by
+default.
+
+Finally, you can run:
+```shell
+click-to-run/view-all.sh -calcite
+```
+to view rewriting and profiling results together.
+
+Corresponding output files are in `wtune_data/viewall_calcite/result/`.
+
+### Test Verifier on Calcite Query Set
 
 ```shell
 click-to-run/verify-calcite-query.sh
