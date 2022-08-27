@@ -14,9 +14,7 @@ import wtune.spes.AlgeNode.TableNode;
 import wtune.spes.AlgeRule.JoinToProject;
 import wtune.sql.plan.*;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import static wtune.superopt.nodetrans.Transformer.defaultIntType;
 
@@ -160,8 +158,8 @@ public class AggTranformer extends BaseTransformer {
 
     final RexInputRef havingAttrs = new RexInputRef(havingAttrIdx, defaultIntType());
     final SqlFunction havingPred = transCtx.getOrCreatePredicate(havingPredExpr.toString().substring(0, 2));
-    final RexNode havingCond = rexBuilder.makeCall(havingPred, Collections.singletonList(havingAttrs));
-    return JoinTransformer.wrapBySPJWithCondition(newAggNode, Collections.singleton(havingCond), transCtx.z3Context());
+    final RexNode havingCond = rexBuilder.makeCall(havingPred, new ArrayList<>(List.of(havingAttrs)));
+    return JoinTransformer.wrapBySPJWithCondition(newAggNode, new HashSet<>(Set.of(havingCond)), transCtx.z3Context());
   }
 
   private static boolean trivialAgg(AlgeNode input, List<Integer> groupByList) {

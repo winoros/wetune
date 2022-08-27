@@ -9,8 +9,7 @@ import wtune.superopt.uexpr.UExprTranslationResult;
 import wtune.superopt.logic.LogicSupport;
 
 import static wtune.sql.plan.PlanSupport.translateAsAst;
-import static wtune.superopt.substitution.SubstitutionSupport.loadBank;
-import static wtune.superopt.substitution.SubstitutionSupport.translateAsPlan;
+import static wtune.superopt.substitution.SubstitutionSupport.*;
 
 public class RunRuleExample implements Runner {
   private Substitution rule;
@@ -45,7 +44,7 @@ public class RunRuleExample implements Runner {
     System.out.println("  " + rule);
     System.out.println();
 
-    final var pair = translateAsPlan(rule);
+    final var pair = rule.id() > 31 ? translateAsPlan2(rule) : translateAsPlan(rule);
     final SqlNode q0 = translateAsAst(pair.getLeft(), pair.getLeft().root(), true);
     final SqlNode q1 = translateAsAst(pair.getRight(), pair.getRight().root(), true);
 
