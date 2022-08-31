@@ -3,6 +3,7 @@ module wtune.common {
   exports wtune.common.tree;
   exports wtune.common.field;
   exports wtune.common.datasource;
+  exports wtune.common.io;
 
   requires com.google.common;
   requires org.apache.commons.lang3;

@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Iterator;
 
-import static wtune.stmt.utils.FileUtils.dataFile;
+import static wtune.common.io.FileUtils.dataFile;
 
 public class RawLog implements Iterable<RawStmt>, AutoCloseable {
   private final RawStmtLog stmts;

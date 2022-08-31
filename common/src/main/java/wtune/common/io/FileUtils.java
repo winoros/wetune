@@ -1,4 +1,4 @@
-package wtune.stmt.utils;
+package wtune.common.io;
 
 import java.io.IOException;
 import java.nio.file.Files;

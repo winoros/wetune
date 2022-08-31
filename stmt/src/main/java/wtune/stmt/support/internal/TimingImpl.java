@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static wtune.stmt.utils.FileUtils.CSV_SEP;
+import static wtune.common.io.FileUtils.CSV_SEP;
 
 public record TimingImpl(String app, int stmtId, String tag, long p50, long p90, long p99)
     implements Timing {

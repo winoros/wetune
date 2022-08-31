@@ -1,6 +1,6 @@
 package wtune.stmt.dao.internal;
 
-import wtune.stmt.utils.DbUtils;
+import wtune.common.datasource.DbUtils;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

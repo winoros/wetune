@@ -15,7 +15,7 @@ import wtune.stmt.dao.StatementDao;
 import wtune.stmt.dao.TimingDao;
 import wtune.stmt.rawlog.RawLog;
 import wtune.stmt.rawlog.RawStmt;
-import wtune.stmt.utils.FileUtils;
+import wtune.common.io.FileUtils;
 
 import java.io.IOException;
 import java.nio.file.Path;

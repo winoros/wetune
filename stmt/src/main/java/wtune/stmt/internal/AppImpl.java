@@ -5,7 +5,7 @@ import wtune.sql.schema.Schema;
 import wtune.sql.schema.SchemaSupport;
 import wtune.stmt.App;
 import wtune.stmt.dao.SchemaPatchDao;
-import wtune.stmt.utils.FileUtils;
+import wtune.common.io.FileUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
