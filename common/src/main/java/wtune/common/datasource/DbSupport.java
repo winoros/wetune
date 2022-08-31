@@ -39,7 +39,7 @@ public interface DbSupport {
   private static Properties pgProps(String db) {
     final Properties props = new Properties();
     props.setProperty("dbType", PostgreSQL);
-    props.setProperty("jdbcUrl", "jdbc:postgresql://10.0.0.103:5432/" + db);
+    props.setProperty("jdbcUrl", "jdbc:postgresql://127.0.0.1:5432/" + db);
     props.setProperty("username", "root");
     props.setProperty("password", "admin");
     return props;
@@ -49,7 +49,7 @@ public interface DbSupport {
     final Properties props = new Properties();
     props.setProperty("dbType", MySQL);
     props.setProperty(
-            "jdbcUrl", "jdbc:mysql://10.0.0.103:3306/" + db + "?rewriteBatchedStatements=true");
+            "jdbcUrl", "jdbc:mysql://127.0.0.1:3306/" + db + "?rewriteBatchedStatements=true");
     props.setProperty("username", "root");
     props.setProperty("password", "admin");
     return props;
@@ -59,7 +59,7 @@ public interface DbSupport {
     final Properties props = new Properties();
     props.setProperty("dbType", SQLServer);
     props.setProperty(
-            "jdbcUrl", "jdbc:sqlserver://10.0.0.103:1433;DatabaseName=" + db);
+            "jdbcUrl", "jdbc:sqlserver://127.0.0.1:1433;DatabaseName=" + db);
     props.setProperty("username", "SA");
     props.setProperty("password", "mssql2019Admin");
     return props;
@@ -68,7 +68,7 @@ public interface DbSupport {
   private static Properties mysqlPropsCalciteWrap(String db) {
     final Properties props = new Properties();
     props.setProperty("dbType", MySQL);
-    props.setProperty("jdbcUrl", "jdbc:log4jdbc:mysql://10.0.0.103:3306/" + db);
+    props.setProperty("jdbcUrl", "jdbc:log4jdbc:mysql://127.0.0.1:3306/" + db);
     props.setProperty("username", "root");
     props.setProperty("password", "admin");
     return props;
@@ -77,7 +77,7 @@ public interface DbSupport {
   private static Properties pgPropsCalciteWrap(String db) {
     final Properties props = new Properties();
     props.setProperty("dbType", PostgreSQL);
-    props.setProperty("jdbcUrl", "jdbc:log4jdbc:postgresql://10.0.0.103:5432/" + db);
+    props.setProperty("jdbcUrl", "jdbc:log4jdbc:postgresql://127.0.0.1:5432/" + db);
     props.setProperty("username", "root");
     props.setProperty("password", "admin");
     return props;

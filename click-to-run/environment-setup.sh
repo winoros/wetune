@@ -39,5 +39,5 @@ sudo chmod a+wx /etc/profile.d/mssql.sh
 sudo echo -e 'export PATH="$PATH:/opt/mssql-tools/bin"'>> /etc/profile.d/mssql.sh
 source /etc/profile
 
-gradle :stmt:downloadDb
-gradle :superopt:downloadLib
+#gradle :stmt:downloadDb
+#gradle :superopt:downloadLib
