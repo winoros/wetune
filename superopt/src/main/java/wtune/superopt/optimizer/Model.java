@@ -247,6 +247,8 @@ class Model {
     while (path != surface) {
       final int parent = plan.parentOf(path);
       if (plan.kindOf(parent).isFilter()) return false;
+      if (plan.kindOf(parent) == PlanKind.Agg && ((AggNode) plan.nodeAt(parent)).havingExpr() != null)
+        return false;
       path = parent;
     }
 
