@@ -22,4 +22,5 @@ module wtune.superopt {
   requires com.microsoft.sqlserver.jdbc;
   requires calcite.core;
   requires mysql.connector.java;
+  requires io.javalin;
 }

@@ -8,4 +8,5 @@ module wtune.stmt {
 
   exports wtune.stmt;
   exports wtune.stmt.support;
+  exports wtune.stmt.dao;
 }

@@ -23,4 +23,8 @@ public interface StatementDao {
   static StatementDao instance() {
     return DbStatementDao.instance();
   }
+
+    public void insertSQL(String appName, int stmtId, String rawsql);
+
+  public void deleteStmt(String appName, int stmtId);
 }

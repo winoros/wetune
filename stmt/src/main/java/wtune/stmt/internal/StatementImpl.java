@@ -117,4 +117,8 @@ public class StatementImpl implements Statement {
   public String toString() {
     return "%s-%d".formatted(appName(), stmtId());
   }
+
+    public void insert() {
+      
+  }
 }

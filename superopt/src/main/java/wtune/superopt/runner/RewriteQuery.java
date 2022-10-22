@@ -9,6 +9,7 @@ import wtune.sql.plan.PlanKind;
 import wtune.sql.plan.PlanSupport;
 import wtune.sql.schema.Schema;
 import wtune.stmt.Statement;
+import wtune.stmt.dao.StatementDao;
 import wtune.superopt.optimizer.OptimizationStep;
 import wtune.superopt.optimizer.Optimizer;
 import wtune.superopt.optimizer.OptimizerSupport;
@@ -31,6 +32,7 @@ import static wtune.common.utils.IterableSupport.all;
 import static wtune.sql.plan.PlanSupport.*;
 import static wtune.sql.support.action.NormalizationSupport.normalizeAst;
 import static wtune.superopt.optimizer.OptimizerSupport.*;
+import static wtune.superopt.runner.RunnerSupport.dataDir;
 import static wtune.superopt.runner.RunnerSupport.parseIntArg;
 
 public class RewriteQuery implements Runner {
@@ -39,7 +41,24 @@ public class RewriteQuery implements Runner {
   private int stmtId;
   private boolean single, excludeNonEssential;
   private int verbosity;
+
+  private String sqlText;
   private SubstitutionBank rules;
+
+  public void setRawSQL(String appName, int stmtId, String rawSQL) {
+      targetApp = appName;
+      this.stmtId = stmtId;
+      sqlText = rawSQL;
+      verbosity = 4;
+
+      final Path dataDir = RunnerSupport.dataDir();
+      final Path ruleFilePath = dataDir.resolve("rules/rules.txt");
+      try {
+          rules = SubstitutionSupport.loadBank(ruleFilePath);
+      } catch (IOException e) {
+          System.out.println("rule set failed");
+      }
+  }
 
   @Override
   public void prepare(String[] argStrings) throws IOException {
@@ -56,6 +75,13 @@ public class RewriteQuery implements Runner {
         stmtId = parseIntArg(target.substring(index + 1), "stmtId");
       }
     }
+
+    final String sql =args.getOptional("s", "sql", String.class, null);
+    if (sql != null) {
+        sqlText = sql;
+    }
+
+      System.out.printf("target: %s, stmtId: %d, rawSQL: %s\n", target, stmtId, sqlText);
 
     single = args.getOptional("1", "single", boolean.class, false);
     if (single && (target == null)) {
@@ -95,9 +121,14 @@ public class RewriteQuery implements Runner {
     addOptimizerTweaks(TWEAK_SORT_FILTERS_BEFORE_OUTPUT);
 
     if (single && stmtId > 0) {
+        System.out.println("1111111111111111");
       optimizeOne(Statement.findOne(targetApp, stmtId));
-    } else {
+    } else if (sqlText == null) {
+        System.out.println("22222222222222222222");
       optimizeAll(collectToRun());
+    } else {
+        System.out.println("3333333333333");
+        insertAndOptimize();
     }
   }
 
@@ -126,6 +157,85 @@ public class RewriteQuery implements Runner {
     }
   }
 
+  public String insertAndOptimize() {
+      StatementDao.instance().insertSQL(targetApp, stmtId, sqlText);
+      Statement stmt = Statement.mk(targetApp, stmtId, sqlText, "");
+      String result = optimizeOneAndPickOne(stmt);
+      StatementDao.instance().deleteStmt(targetApp, stmtId);
+      return result;
+
+  }
+
+  private String optimizeOneAndPickOne(Statement stmt) {
+      if (verbosity >= 3) {
+          System.out.println("begin optimize " + stmt);
+          if (verbosity >= 4) System.out.println(stmt.ast().toString(false));
+      }
+
+      PlanContext plan = null;
+      try {
+          plan = parsePlan(stmt);
+          if (plan == null) {
+              if (verbosity >= 3) System.out.println("nil plan generated");
+              return null;
+          }
+
+          if (isSimple(plan)) {
+              if (verbosity >= 3) System.out.println("skip simple query " + stmt);
+              return null;
+          }
+
+          final Optimizer optimizer = Optimizer.mk(rules);
+          optimizer.setTimeout(5000);
+          optimizer.setTracing(true);
+
+          final Set<PlanContext> optimized = optimizer.optimize(plan);
+          if (optimized.isEmpty()) {
+              if (verbosity >= 3) System.out.println("skip this query since optmized plan is empty" + stmt);
+              return null;
+          }
+          final List<String> optimizedSql = new ArrayList<>(optimized.size());
+          final List<String> traces = new ArrayList<>(optimized.size());
+          for (PlanContext opt : optimized) {
+              final List<OptimizationStep> steps = optimizer.traceOf(opt);
+
+              if (steps.isEmpty()) {
+                  if (verbosity >= 3) System.out.println("skip the query since the opt steps is empty" + stmt);
+                  continue;
+              }
+              if (excludeNonEssential && all(steps, step -> step.rule() == null)) continue;
+
+              final SqlNode sqlNode = translateAsAst(opt, opt.root(), false);
+              if (sqlNode == null) {
+                  if (verbosity >= 1)
+                      System.err.println(
+                              "fail to translate optimized plan of "
+                              + stmt
+                              + " to SQL due to "
+                              + PlanSupport.getLastError());
+                  if (verbosity >= 2) System.err.println(stringifyTree(opt, opt.root(), false, false));
+                  continue;
+              }
+
+                  System.out.println("===== Rewritings =====");
+                  System.out.println(sqlNode.toString(false));
+                  OptimizerSupport.dumpTrace(optimizer, opt);
+                  return sqlNode.toString(false);
+          }
+
+          if (single) return null;
+
+      } catch (Throwable ex) {
+          if (verbosity >= 1) System.err.println("fail to optimize stmt " + stmt);
+          if (verbosity >= 2) {
+              System.err.println(stmt.ast().toString(false));
+              if (plan != null) System.err.println(stringifyTree(plan, plan.root(), false, false));
+              ex.printStackTrace();
+          }
+      }
+      return null;
+  }
+
   private void optimizeOne(Statement stmt) {
     if (verbosity >= 3) {
       System.out.println("begin optimize " + stmt);
@@ -135,7 +245,10 @@ public class RewriteQuery implements Runner {
     PlanContext plan = null;
     try {
       plan = parsePlan(stmt);
-      if (plan == null) return;
+      if (plan == null) {
+          if (verbosity >= 3) System.out.println("nil plan generated");
+          return;
+      }
 
       if (isSimple(plan)) {
         if (verbosity >= 3) System.out.println("skip simple query " + stmt);
@@ -147,14 +260,20 @@ public class RewriteQuery implements Runner {
       optimizer.setTracing(true);
 
       final Set<PlanContext> optimized = optimizer.optimize(plan);
-      if (optimized.isEmpty()) return;
+      if (optimized.isEmpty()) {
+          if (verbosity >= 3) System.out.println("skip this query since optmized plan is empty" + stmt);
+          return;
+      }
 
       final List<String> optimizedSql = new ArrayList<>(optimized.size());
       final List<String> traces = new ArrayList<>(optimized.size());
       for (PlanContext opt : optimized) {
-        final List<OptimizationStep> steps = optimizer.traceOf(opt);
+          final List<OptimizationStep> steps = optimizer.traceOf(opt);
 
-        if (steps.isEmpty()) continue;
+          if (steps.isEmpty()) {
+              if (verbosity >= 3) System.out.println("skip the query since the opt steps is empty" + stmt);
+            continue;
+        }
         if (excludeNonEssential && all(steps, step -> step.rule() == null)) continue;
 
         final SqlNode sqlNode = translateAsAst(opt, opt.root(), false);
@@ -262,5 +381,12 @@ public class RewriteQuery implements Runner {
 
     while (plan.kindOf(node) == PlanKind.Filter) node = plan.childOf(node, 0);
     return plan.kindOf(node) == PlanKind.Input;
+  }
+
+    @Override
+    public void stop() {
+      if (sqlText != null) {
+          StatementDao.instance().deleteStmt(targetApp, stmtId);
+      }
   }
 }

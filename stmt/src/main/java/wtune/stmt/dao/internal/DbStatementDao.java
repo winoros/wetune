@@ -103,6 +103,31 @@ public class DbStatementDao extends DbDao implements StatementDao {
     }
   }
 
+  public void insertSQL(String appName, int stmtId, String rawsql) {
+      try {
+          final PreparedStatement ps = prepare(INSERT);
+          ps.setString(1, appName);
+          ps.setInt(2, stmtId);
+          ps.setString(3, rawsql);
+          ps.setString(4, "");
+          ps.executeUpdate();
+      } catch (SQLException throwables) {
+          throw new RuntimeException(throwables);
+      }
+  }
+
+  public void deleteStmt(String appName, int stmtId) {
+      try {
+          final PreparedStatement delete = prepare(DELETE_ONE);
+          delete.setString(1, appName);
+          delete.setInt(2, stmtId);
+          delete.executeUpdate();
+      } catch (SQLException throwables) {
+          throw new RuntimeException(throwables);
+      }
+
+  }
+
   @Override
   public void delete(Statement stmt, String cause) {
     try {
