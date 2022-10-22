@@ -53,9 +53,12 @@ public class RewriteQuery implements Runner {
 
       final Path dataDir = RunnerSupport.dataDir();
       final Path ruleFilePath = dataDir.resolve("rules/rules.txt");
+      IOSupport.checkFileExists(ruleFilePath);
       try {
           rules = SubstitutionSupport.loadBank(ruleFilePath);
-      } catch (IOException e) {
+      } catch (Exception e) {
+          System.out.println(ruleFilePath);
+          System.out.println(e.getMessage());
           System.out.println("rule set failed");
       }
   }
